@@ -1,10 +1,5 @@
 #TODO: agregar funcionalidad de ejecutar una linea especifica por medio del StateFile
 # Verify that the script is running as an administrator
-$IsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()
-).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-
-$ScriptPath = $MyInvocation.MyCommand.Path
-
 function relaunch_admin_script {
     # Relaunch script with administrator privileges
     Start-Process powershell -ArgumentList `
@@ -12,6 +7,8 @@ function relaunch_admin_script {
         -Verb RunAs
 }
 
+$IsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()
+    ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $IsAdmin) {
     Write-Host "El script no se está ejecutando como administrador. Relanzando..."
 
@@ -20,29 +17,33 @@ if (-not $IsAdmin) {
     exit
 }
 
+$ScriptPath = $MyInvocation.MyCommand.Path
 $StateFile = "$env:TEMP\script_state.txt"
 
-$Checkpoint = if (Test-Path $StateFile) { Get-Content $StateFile } else { "start" }
-
-switch ($Checkpoint) {
-    "start" {
+$cases = [ordered]@{
+    "start" = {
         # Enable necessary features
+        Write-Host "Start"
         dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
-        dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+        #dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
   
         $Command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$ScriptPath`""
 
         # Add to RunOnce in the registry
-        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce" `
-            -Name "MiScriptRunOnce" -Value $Command
+        #Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce" `
+        #    -Name "MiScriptRunOnce" -Value $Command
 
-        "wsl_setup" | Out-File $StateFile -Encoding UTF8
+         "wsl_setup" | Out-File $StateFile -Encoding UTF8
 
-        Restart-Computer -Force
+        Write-Host "El sistema se va a reiniciar. presione cualquier tecla para continuar..."
+        [void][System.Console]::ReadKey($true)
+
+        #Restart-Computer -Force
     }
 
-    "wsl_setup" {
-        wsl --install --no-distribution -ErrorAction SilentlyContinue
+    "wsl_setup"  = {
+        Write-Host "wsl_setup"
+        wsl --install --no-distribution
 
         Invoke-WebRequest -Uri https://cloud-images.ubuntu.com/wsl/releases/22.04/current/ubuntu-jammy-wsl-amd64-wsl.rootfs.tar.gz `
             -OutFile $env:TEMP\ubuntu-jammy-wsl-amd64-wsl.rootfs.tar.gz
@@ -61,14 +62,9 @@ switch ($Checkpoint) {
         wsl --terminate Ubuntu-22.04
 
         "docker_setup" | Out-File $StateFile -Encoding UTF8
-
-        relaunch_admin_script
-
-        exit
-
     }
 
-    "docker_setup" {
+    "docker_setup"  = {
         Start-BitsTransfer -Source "https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe" `
             -Destination "$env:TEMP\Docker%20Desktop%20Installer.exe"
 
@@ -77,14 +73,9 @@ switch ($Checkpoint) {
         docker version
 
         "clean" | Out-File $StateFile -Encoding UTF8
-
-        relaunch_admin_script
-
-        exit
-
     }
 
-    "clean" {
+    "clean"  = {
         Remove-Item -Path `
         "$env:TEMP\ubuntu-jammy-wsl-amd64-wsl.rootfs.tar.gz", `
         "$env:TEMP\wsl.2.5.10.0.x64.msi", `
@@ -94,4 +85,10 @@ switch ($Checkpoint) {
 
         exit
     }
+}
+
+$Checkpoint = ""
+foreach ($key in $cases.Keys) {
+    $Checkpoint = if (Test-Path $StateFile) { Get-Content $StateFile } else { "start" }
+    if ($key -eq $Checkpoint) { & $cases[$key] }
 }
