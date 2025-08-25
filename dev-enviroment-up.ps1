@@ -1,4 +1,4 @@
-﻿#TODO: agregar funcionalidad de ejecutar una linea especifica por medio del StateFile
+#TODO: agregar funcionalidad de ejecutar una linea especifica por medio del StateFile
 # Verify that the script is running as an administrator
 $IsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()
 ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -60,11 +60,27 @@ switch ($Checkpoint) {
         
         wsl --terminate Ubuntu-22.04
 
+        "docker_setup" | Out-File $StateFile -Encoding UTF8
+
+        relaunch_admin_script
+
+        exit
+
+    }
+
+    "docker_setup" {
+        Start-BitsTransfer -Source "https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe" `
+            -Destination "$env:TEMP\Docker%20Desktop%20Installer.exe"
+
+        Start-Process -FilePath "$env:TEMP\Docker%20Desktop%20Installer.exe" -ArgumentList "install", "--quiet" -Wait
+
+        docker version
+
         "clean" | Out-File $StateFile -Encoding UTF8
 
         relaunch_admin_script
-        
-        wsl
+
+        exit
 
     }
 
@@ -72,6 +88,7 @@ switch ($Checkpoint) {
         Remove-Item -Path `
         "$env:TEMP\ubuntu-jammy-wsl-amd64-wsl.rootfs.tar.gz", `
         "$env:TEMP\wsl.2.5.10.0.x64.msi", `
+        "$env:TEMP\Docker%20Desktop%20Installer.exe" `
         #"$env:TEMP\script_state.txt" `
         -Force -ErrorAction SilentlyContinue
 
