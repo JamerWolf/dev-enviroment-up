@@ -10,7 +10,7 @@ function relaunch_admin_script {
 $IsAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()
     ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $IsAdmin) {
-    Write-Host "El script no se está ejecutando como administrador. Relanzando..."
+    Write-Host "El script no se estÃ¡ ejecutando como administrador. Relanzando..."
 
     relaunch_admin_script
 
@@ -65,15 +65,20 @@ $cases = [ordered]@{
 
     "docker_setup"  = {
         Start-BitsTransfer -Source "https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe" `
-            -Destination "$env:TEMP\Docker%20Desktop%20Installer.exe"
+            -Destination "$env:TEMP\Docker-Desktop-Installer.exe"
+	
+	    Write-Host "Instalando Docker Desktop"
+            Start-Process -FilePath "$env:TEMP\Docker-Desktop-Installer.exe" -ArgumentList "install --quiet --accept-license" -Wait
 
-        Start-Process -FilePath "$env:TEMP\Docker%20Desktop%20Installer.exe" -ArgumentList "install", "--quiet" -Wait
-
+	    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+	
+	    docker desktop start
+	
         docker desktop update -q
 
         docker -v
 
-        "conf_wsl_integration" | Out-File $StateFile -Encoding UTF8
+        "conf_docker_wsl_integration" | Out-File $StateFile -Encoding UTF8
         
     }
 
@@ -81,8 +86,8 @@ $cases = [ordered]@{
         $settingsPath = "$env:APPDATA\Docker\settings-store.json"
         
         if (-Not (Test-Path $settingsPath)) {
-            Write-Host "No se encontró Docker Desktop instalado o el archivo settings.json."
-            #exit 1
+            Write-Host "No se encontro Docker Desktop instalado o el archivo settings.json."
+            exit 1
         }
 
         $json = Get-Content $settingsPath -Raw | ConvertFrom-Json
@@ -113,7 +118,7 @@ $cases = [ordered]@{
         Remove-Item -Path `
         "$env:TEMP\ubuntu-jammy-wsl-amd64-wsl.rootfs.tar.gz", `
         "$env:TEMP\wsl.2.5.10.0.x64.msi", `
-        "$env:TEMP\Docker%20Desktop%20Installer.exe" `
+        "$env:TEMP\Docker%20Desktop%20Installer.exe", `
         "$env:TEMP\script_state.txt" `
         -Force -ErrorAction SilentlyContinue
 
