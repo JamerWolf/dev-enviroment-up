@@ -1,0 +1,9 @@
+services:
+    git-container:
+        image: alpine:latest
+        container_name: git
+        volumes:
+            - /c/Users/jamerwolf/Documents:/home/data
+        stdin_open: true
+        tty: true
+        command: sh -c "apk add git && sh"
