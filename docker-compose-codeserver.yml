@@ -1,0 +1,14 @@
+services:
+  code-server:
+    image: codercom/code-server:latest
+    container_name: code-server
+    restart: unless-stopped
+    ports:
+      - "8080:8080"  # Acceso desde http://localhost:8080
+    environment:
+      - PASSWORD=V0yporunvasodeagua!
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - /c/Users/jamerwolf/Documents/:/home/coder/project  # Carpeta de proyectos
+      - /var/run/docker.sock:/var/run/docker.sock # Docker socket del host
+      - /mnt/host/wsl/docker-desktop/cli-tools/usr/bin/docker:/usr/bin/docker #Binary Docker
